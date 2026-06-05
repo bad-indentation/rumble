@@ -2,7 +2,7 @@ use std::{collections::HashSet, fs};
 
 /// Loads words from the given filepath
 /// Returns Err variant if file cannot be read
-pub fn load_words(path: &str) -> Result<HashSet<String>, std::io::Error> {
+fn load_words(path: &str) -> Result<HashSet<String>, std::io::Error> {
     let mut words = HashSet::new();
     let lines = fs::read_to_string(path)?;
     
