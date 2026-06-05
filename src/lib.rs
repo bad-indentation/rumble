@@ -27,6 +27,20 @@ fn get_prefixes(words: &HashSet<String>) -> HashSet<String> {
     prefixes
 }
 
+/// Represents a potential word as it is being constructed via DFS
+struct PathBuilder {
+    word: String,
+    letters_available: Vec<char>,
+}
+
+impl PathBuilder {
+    /// Creates a new path from the given scrambled word
+    fn new(scrambled: &str) -> Self {
+        PathBuilder { word: String::new(), letters_available: scrambled.chars().collect() }
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
