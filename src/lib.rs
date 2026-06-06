@@ -79,6 +79,17 @@ fn get_words(word_path: PathBuilder, valid_prefixes: &HashSet<String>) -> HashSe
     found
 }
 
+struct Config {
+    scrambled: String,
+    verbose: bool,
+    include_partial: bool,
+}
+
+impl Config {
+    fn new(scrambled: String, verbose: bool, include_partial: bool) -> Self {
+        Self { scrambled, verbose, include_partial }
+    } 
+}
 
 #[cfg(test)]
 mod tests {
