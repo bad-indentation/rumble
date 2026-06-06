@@ -125,6 +125,7 @@ pub fn run(config: Config) {
 
     let mut words = Vec::new();
 
+    eprintln_if_verbose("Searching...", config.verbose);
     for word in get_words(PathBuilder::from(&config.scrambled), &valid_prefixes) {
         if valid_words.contains(&word) && (word.len() == config.scrambled.len() || config.include_partial) {
             words.push(word);

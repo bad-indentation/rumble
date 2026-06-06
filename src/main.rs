@@ -1,3 +1,7 @@
+use clap::Parser;
+use rumble::{Config, run};
+
 fn main() {
-    println!("Hello, world!");
+    let args = Config::parse();
+    run(args);
 }
