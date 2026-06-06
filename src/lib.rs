@@ -35,9 +35,48 @@ struct PathBuilder {
 
 impl PathBuilder {
     /// Creates a new path from the given scrambled word
-    fn new(scrambled: &str) -> Self {
+    fn from(scrambled: &str) -> Self {
         PathBuilder { word: String::new(), letters_available: scrambled.chars().collect() }
     }
+
+    fn new(word: String, letters_available: Vec<char>) -> Self {
+        PathBuilder { word, letters_available }
+    }
+}
+
+/// Returns all valid prefixes that can be made using the scrambled letters in `word_path`
+/// TODO: get rid of all the clones
+fn get_words(word_path: PathBuilder, valid_prefixes: &HashSet<String>) -> HashSet<String> {
+    if word_path.letters_available.is_empty() {
+        return HashSet::from([word_path.word]);
+    }
+
+    let mut found: HashSet<String> = HashSet::new();
+    let mut new_path;
+
+    for (i, letter) in word_path.letters_available.iter().enumerate() {
+        let mut new_word = word_path.word.clone();
+        new_word.push(*letter);
+
+        dbg!(&new_word);
+        if valid_prefixes.contains(&new_word) {
+            let mut new_letters = word_path.letters_available.clone();
+            new_letters.remove(i);
+            
+            found.insert(new_word.clone());
+
+            dbg!("Valid prefix!", &new_letters);
+
+            new_path = PathBuilder::new(
+                new_word.to_string(),
+                new_letters,
+            );
+
+            found.extend(get_words(new_path, valid_prefixes).iter().cloned());
+        }
+    }
+
+    found
 }
 
 
@@ -75,4 +114,13 @@ mod tests {
 
         assert_eq!(get_prefixes(&words), expected_prefixes);
     }
+
+    #[test]
+    fn test_get_words() {
+        let valid_prefixes = get_prefixes(&load_words("public/test_list.txt").unwrap());
+        let results = get_words(PathBuilder::from("2owrd"), &valid_prefixes);
+    
+
+        assert_eq!(results, HashSet::from(["w", "wo", "wor", "word", "word2"].map(String::from)));
+    } 
 }
