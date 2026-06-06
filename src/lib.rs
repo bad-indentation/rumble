@@ -1,4 +1,6 @@
-use std::{collections::HashSet, fs};
+use std::{collections::HashSet, fs, process::exit};
+
+use clap::Parser;
 
 /// Loads words from the given filepath
 /// Returns Err variant if file cannot be read
@@ -58,14 +60,11 @@ fn get_words(word_path: PathBuilder, valid_prefixes: &HashSet<String>) -> HashSe
         let mut new_word = word_path.word.clone();
         new_word.push(*letter);
 
-        dbg!(&new_word);
         if valid_prefixes.contains(&new_word) {
             let mut new_letters = word_path.letters_available.clone();
             new_letters.remove(i);
             
             found.insert(new_word.clone());
-
-            dbg!("Valid prefix!", &new_letters);
 
             new_path = PathBuilder::new(
                 new_word.to_string(),
@@ -79,17 +78,70 @@ fn get_words(word_path: PathBuilder, valid_prefixes: &HashSet<String>) -> HashSe
     found
 }
 
-struct Config {
+
+/// Configuration for command line args Parser
+/// Based on example in Clap documentation:
+/// https://docs.rs/clap/latest/clap/#example
+#[derive(Parser)]
+#[command(version, about = "A blazingly fast Jumble solver written in Rust", long_about = None)]
+pub struct Config {
+    /// The scrambled word you want to unscramble
     scrambled: String,
-    verbose: bool,
+
+    /// Whether to include words that don't use all available letters
+    #[arg(short = 'p', long, default_value_t = false)]
     include_partial: bool,
+
+    /// Print debugging details to stderr
+    #[arg(short, long, default_value_t = false)]
+    verbose: bool,
 }
 
 impl Config {
-    fn new(scrambled: String, verbose: bool, include_partial: bool) -> Self {
+    pub fn new(scrambled: String, verbose: bool, include_partial: bool) -> Self {
         Self { scrambled, verbose, include_partial }
     } 
 }
+
+fn eprintln_if_verbose(msg: &str, verbose: bool) {
+    if verbose {
+        eprintln!("{}", msg);
+    }
+}
+
+pub fn run(config: Config) {
+    eprintln_if_verbose("Loading wordlist...", config.verbose);
+    let valid_words = match load_words("public/wordlist.txt") {
+        Ok(words) => words,
+        Err(e) => {
+            eprintln!("Problem loading words: {:?}", e);
+            eprintln!("Hint: this error is likely because you're in the wrong directory!");
+            exit(1);
+        }
+    };
+
+    eprintln_if_verbose("Precomputing prefixes...", config.verbose);
+    let valid_prefixes = get_prefixes(&valid_words);
+
+    let mut words = Vec::new();
+
+    for word in get_words(PathBuilder::from(&config.scrambled), &valid_prefixes) {
+        if valid_words.contains(&word) && (word.len() == config.scrambled.len() || config.include_partial) {
+            words.push(word);
+        }
+    }
+    
+    if !words.is_empty() {
+        words.sort();
+        words.iter().for_each(|word| println!("{}", word));
+        eprintln_if_verbose(&format!("Found {} words.", words.len()), config.verbose);
+        exit(0);
+    }
+
+    eprintln!("Sorry, couldn't find any words. :(")
+
+}
+
 
 #[cfg(test)]
 mod tests {
