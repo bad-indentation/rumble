@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 use std::fs;
 use std::process;
 
@@ -13,6 +13,38 @@ fn no_invalid_letters(word: &str, letters: &HashSet<char>) -> bool {
         }
     }
     true
+}
+
+/// Returns the count for each letter in the given word.
+///
+/// Based on example code from the HashMap documentation.
+fn get_letter_counts(word: &str) -> HashMap<char, usize> {
+    let mut counter = HashMap::new();
+
+    for letter in word.chars() {
+        counter.entry(letter).and_modify(|ct| *ct += 1).or_insert(1);
+    }
+
+    counter
+}
+
+/// Returns true if `word` is an anagram of the string whose letter counts
+/// are given by `count`
+/// If `partial` is true, `word` need not use every letter in count 
+/// to be considered a (partial) anagram
+fn is_anagram_of(word: &str, target: &HashMap<char, usize>, partial: bool) -> bool {
+    let mut candinate_count = HashMap::new();
+
+    for letter in word.chars() {
+        candinate_count.entry(letter).and_modify(|ct| *ct += 1).or_insert(1);
+        
+        if *target.get(&letter).unwrap_or(&0) < *candinate_count.get(&letter).expect("violates invariant") {
+            return false;
+        } 
+        
+    }
+
+    partial || *target == candinate_count
 }
 
 /// Loads words from the given filepath
@@ -35,71 +67,6 @@ fn load_words(
     }
 
     Ok(words)
-}
-
-/// Returns the set of all unique prefixes within the set.
-fn get_prefixes(words: &HashSet<String>) -> HashSet<String> {
-    let mut prefixes = HashSet::new();
-
-    for word in words {
-        for end in 1..=word.len() {
-            prefixes.insert(String::from(&word[0..end]));
-        }
-    }
-
-    prefixes
-}
-
-/// Represents a potential word as it is being constructed via DFS
-struct PathBuilder {
-    word: String,
-    letters_available: Vec<char>,
-}
-
-impl PathBuilder {
-    /// Creates a new path from the given scrambled word
-    fn from(scrambled: &str) -> Self {
-        PathBuilder {
-            word: String::new(),
-            letters_available: scrambled.chars().collect(),
-        }
-    }
-
-    fn new(word: String, letters_available: Vec<char>) -> Self {
-        PathBuilder {
-            word,
-            letters_available,
-        }
-    }
-}
-
-/// Returns all valid prefixes that can be made using the scrambled letters in `word_path`
-/// TODO: get rid of all the clones
-fn get_words(word_path: PathBuilder, valid_prefixes: &HashSet<String>) -> HashSet<String> {
-    if word_path.letters_available.is_empty() {
-        return HashSet::from([word_path.word]);
-    }
-
-    let mut found: HashSet<String> = HashSet::new();
-    let mut new_path;
-
-    for (i, letter) in word_path.letters_available.iter().enumerate() {
-        let mut new_word = word_path.word.clone();
-        new_word.push(*letter);
-
-        if valid_prefixes.contains(&new_word) {
-            let mut new_letters = word_path.letters_available.clone();
-            new_letters.remove(i);
-
-            found.insert(new_word.clone());
-
-            new_path = PathBuilder::new(new_word.to_string(), new_letters);
-
-            found.extend(get_words(new_path, valid_prefixes).iter().cloned());
-        }
-    }
-
-    found
 }
 
 /// Configuration for command line args Parser
@@ -152,28 +119,20 @@ pub fn run(config: Config) {
         }
     };
 
-    eprintln_if_verbose("Precomputing prefixes...", config.verbose);
-    let valid_prefixes = get_prefixes(&valid_words);
-
-    let mut words = Vec::new();
+    let target_count = get_letter_counts(&config.scrambled);
+    let mut solutions = 0;
 
     eprintln_if_verbose("Searching...", config.verbose);
-    for word in get_words(PathBuilder::from(&config.scrambled), &valid_prefixes) {
-        if valid_words.contains(&word)
-            && (word.len() == config.scrambled.len() || config.include_partial)
-        {
-            words.push(word);
-        }
+    for word in valid_words.iter().filter(|word| is_anagram_of(word, &target_count, config.include_partial)) {
+        solutions += 1;
+        println!("{word}");
     }
 
-    if !words.is_empty() {
-        words.sort();
-        words.iter().for_each(|word| println!("{}", word));
-        eprintln_if_verbose(&format!("Found {} words.", words.len()), config.verbose);
-        process::exit(0);
-    }
-
-    eprintln!("Sorry, couldn't find any words. :(")
+    if solutions == 0 {
+        eprintln!("Sorry, couldn't find any solutions. :(");
+    } else {
+        eprintln!("Found {solutions} solution{}", "s".repeat(usize::min(1, solutions - 1)) + ".");
+    } 
 }
 
 #[cfg(test)]
@@ -208,32 +167,42 @@ mod tests {
     }
 
     #[test]
-    fn test_get_prefixes() {
-        let mut words = HashSet::new();
-        words.extend(["apple", "banana"].map(String::from));
-
-        let mut expected_prefixes = HashSet::new();
-        expected_prefixes.extend(
-            [
-                "a", "ap", "app", "appl", "apple", "b", "ba", "ban", "bana", "banan", "banana",
-            ]
-            .map(String::from),
-        );
-
-        assert_eq!(get_prefixes(&words), expected_prefixes);
+    fn test_get_letter_counts() {
+        let word = "banana";
+        let expected = HashMap::from([('b', 1), ('a', 3), ('n', 2)]);
+        assert_eq!(get_letter_counts(word), expected);
     }
 
     #[test]
-    fn test_get_words() {
-        let max_len = 100;
-        let letters = HashSet::from_iter("abcdefghijklmnopqrstuvwxyz12".chars());
-        let valid_prefixes =
-            get_prefixes(&load_words("public/test_list.txt", max_len, &letters).unwrap());
-        let results = get_words(PathBuilder::from("2owrd"), &valid_prefixes);
+    fn test_true_anagram() {
+        let count = get_letter_counts("nagaram");
+        let candidate = "anagram";
 
-        assert_eq!(
-            results,
-            HashSet::from(["w", "wo", "wor", "word", "word2"].map(String::from))
-        );
+        assert!(is_anagram_of(candidate, &count, false));
     }
+    
+    #[test]
+    fn test_partial_anagram_not_full_anagram() {
+        let count = get_letter_counts("anagram");
+        let candidate = "gram";
+
+        assert!(!is_anagram_of(candidate, &count, false));
+    }
+
+    #[test]
+    fn test_partial_anagram() {
+        let count = get_letter_counts("anagram");
+        let candidate = "gram";
+
+        assert!(is_anagram_of(candidate, &count, true));
+    }
+
+    #[test]
+    fn test_no_anagram() {
+        let count = get_letter_counts("anagram");
+        let candidate = "banana";
+
+        assert!(!is_anagram_of(candidate, &count, true));
+    }
+
 }
