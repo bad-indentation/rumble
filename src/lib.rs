@@ -184,28 +184,20 @@ pub fn run(config: Config) {
         }
     };
 
-    eprintln_if_verbose("Precomputing prefixes...", config.verbose);
-    let valid_prefixes = get_prefixes(&valid_words);
-
-    let mut words = Vec::new();
+    let target_count = get_letter_counts(&config.scrambled);
+    let mut solutions = 0;
 
     eprintln_if_verbose("Searching...", config.verbose);
-    for word in get_words(PathBuilder::from(&config.scrambled), &valid_prefixes) {
-        if valid_words.contains(&word)
-            && (word.len() == config.scrambled.len() || config.include_partial)
-        {
-            words.push(word);
-        }
+    for word in valid_words.iter().filter(|word| is_anagram_of(word, &target_count, config.include_partial)) {
+        solutions += 1;
+        println!("{word}");
     }
 
-    if !words.is_empty() {
-        words.sort();
-        words.iter().for_each(|word| println!("{}", word));
-        eprintln_if_verbose(&format!("Found {} words.", words.len()), config.verbose);
-        process::exit(0);
-    }
-
-    eprintln!("Sorry, couldn't find any words. :(")
+    if solutions == 0 {
+        eprintln!("Sorry, couldn't find any solutions. :(");
+    } else {
+        eprintln!("Found {solutions} solutions.");
+    } 
 }
 
 #[cfg(test)]
