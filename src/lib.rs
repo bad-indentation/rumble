@@ -1,8 +1,9 @@
 use std::collections::{HashMap, HashSet};
-use std::fs;
-use std::process;
 
 use clap::Parser;
+
+/// All words from file separated by newlines.
+const WORDLIST: &str = include_str!("../public/wordlist.txt");
 
 /// Helper function. Returns true if word does not contain any letters
 /// not in `letters`
@@ -56,21 +57,16 @@ fn is_anagram_of(word: &str, target: &HashMap<char, usize>, partial: bool) -> bo
 /// Only uses words with lengths <= `max_len` and contain only `letters`
 ///
 /// Returns Err variant if file cannot be read
-fn load_words(
-    path: &str,
-    max_len: usize,
-    letters: &HashSet<char>,
-) -> Result<HashSet<String>, std::io::Error> {
+fn load_words(wordlist: &str, max_len: usize, letters: &HashSet<char>) -> HashSet<String> {
     let mut words = HashSet::new();
-    let lines = fs::read_to_string(path)?;
 
-    for word in lines.split_whitespace() {
+    for word in wordlist.split_whitespace() {
         if word.len() <= max_len && no_invalid_letters(word, letters) {
             words.insert(String::from(word).to_lowercase());
         }
     }
 
-    Ok(words)
+    words
 }
 
 /// Configuration for command line args Parser
@@ -112,16 +108,7 @@ pub fn run(config: Config) {
 
     let max_len = config.scrambled.len();
     let letters = HashSet::from_iter(config.scrambled.chars());
-    let result = load_words("public/wordlist.txt", max_len, &letters);
-
-    let valid_words = match result {
-        Ok(words) => words,
-        Err(e) => {
-            eprintln!("Problem loading words: {:?}", e.to_string());
-            eprintln!("Hint: this error is likely because you're in the wrong directory!");
-            process::exit(1);
-        }
-    };
+    let valid_words = load_words(WORDLIST, max_len, &letters);
 
     let target_count = get_letter_counts(&config.scrambled);
     let mut solutions = 0;
@@ -155,25 +142,12 @@ mod tests {
         expected.extend(["word1", "word2", "anotherword"].map(String::from));
         assert_eq!(
             load_words(
-                "public/test_list.txt",
+                "word1\nword2\nanotherword",
                 100,
                 &HashSet::from_iter("abcdefghijklmnopqrstuvwxyz12".chars())
-            )
-            .unwrap(),
+            ),
             expected
         );
-    }
-
-    #[test]
-    fn test_failed_word_loading() {
-        assert!(match load_words(
-            "public/nonexistent.txt",
-            100,
-            &HashSet::from(['a', 'b', 'c'])
-        ) {
-            Ok(_) => false,
-            Err(_) => true,
-        });
     }
 
     #[test]
