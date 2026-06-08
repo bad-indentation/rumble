@@ -1,15 +1,37 @@
-use std::{collections::HashSet, fs, process::exit};
+use std::collections::HashSet;
+use std::fs;
+use std::process;
 
 use clap::Parser;
 
+/// Helper function. Returns true if word does not contain any letters
+/// not in `letters`
+fn no_invalid_letters(word: &str, letters: &HashSet<char>) -> bool {
+    for letter in word.chars() {
+        if !letters.contains(&letter) {
+            return false;
+        }
+    }
+    true
+}
+
 /// Loads words from the given filepath
+///
+/// Only uses words with lengths <= `max_len` and contain only `letters`
+///
 /// Returns Err variant if file cannot be read
-fn load_words(path: &str) -> Result<HashSet<String>, std::io::Error> {
+fn load_words(
+    path: &str,
+    max_len: usize,
+    letters: &HashSet<char>,
+) -> Result<HashSet<String>, std::io::Error> {
     let mut words = HashSet::new();
     let lines = fs::read_to_string(path)?;
 
     for word in lines.split_whitespace() {
-        words.insert(String::from(word).to_lowercase());
+        if word.len() <= max_len && no_invalid_letters(word, letters) {
+            words.insert(String::from(word).to_lowercase());
+        }
     }
 
     Ok(words)
@@ -24,7 +46,6 @@ fn get_prefixes(words: &HashSet<String>) -> HashSet<String> {
             prefixes.insert(String::from(&word[0..end]));
         }
     }
-    
 
     prefixes
 }
@@ -38,11 +59,17 @@ struct PathBuilder {
 impl PathBuilder {
     /// Creates a new path from the given scrambled word
     fn from(scrambled: &str) -> Self {
-        PathBuilder { word: String::new(), letters_available: scrambled.chars().collect() }
+        PathBuilder {
+            word: String::new(),
+            letters_available: scrambled.chars().collect(),
+        }
     }
 
     fn new(word: String, letters_available: Vec<char>) -> Self {
-        PathBuilder { word, letters_available }
+        PathBuilder {
+            word,
+            letters_available,
+        }
     }
 }
 
@@ -63,13 +90,10 @@ fn get_words(word_path: PathBuilder, valid_prefixes: &HashSet<String>) -> HashSe
         if valid_prefixes.contains(&new_word) {
             let mut new_letters = word_path.letters_available.clone();
             new_letters.remove(i);
-            
+
             found.insert(new_word.clone());
 
-            new_path = PathBuilder::new(
-                new_word.to_string(),
-                new_letters,
-            );
+            new_path = PathBuilder::new(new_word.to_string(), new_letters);
 
             found.extend(get_words(new_path, valid_prefixes).iter().cloned());
         }
@@ -77,7 +101,6 @@ fn get_words(word_path: PathBuilder, valid_prefixes: &HashSet<String>) -> HashSe
 
     found
 }
-
 
 /// Configuration for command line args Parser
 /// Based on example in Clap documentation:
@@ -99,8 +122,12 @@ pub struct Config {
 
 impl Config {
     pub fn new(scrambled: String, verbose: bool, include_partial: bool) -> Self {
-        Self { scrambled, verbose, include_partial }
-    } 
+        Self {
+            scrambled,
+            verbose,
+            include_partial,
+        }
+    }
 }
 
 fn eprintln_if_verbose(msg: &str, verbose: bool) {
@@ -111,12 +138,17 @@ fn eprintln_if_verbose(msg: &str, verbose: bool) {
 
 pub fn run(config: Config) {
     eprintln_if_verbose("Loading wordlist...", config.verbose);
-    let valid_words = match load_words("public/wordlist.txt") {
+
+    let max_len = config.scrambled.len();
+    let letters = HashSet::from_iter(config.scrambled.chars());
+    let result = load_words("public/wordlist.txt", max_len, &letters);
+
+    let valid_words = match result {
         Ok(words) => words,
         Err(e) => {
             eprintln!("Problem loading words: {:?}", e);
             eprintln!("Hint: this error is likely because you're in the wrong directory!");
-            exit(1);
+            process::exit(1);
         }
     };
 
@@ -127,22 +159,22 @@ pub fn run(config: Config) {
 
     eprintln_if_verbose("Searching...", config.verbose);
     for word in get_words(PathBuilder::from(&config.scrambled), &valid_prefixes) {
-        if valid_words.contains(&word) && (word.len() == config.scrambled.len() || config.include_partial) {
+        if valid_words.contains(&word)
+            && (word.len() == config.scrambled.len() || config.include_partial)
+        {
             words.push(word);
         }
     }
-    
+
     if !words.is_empty() {
         words.sort();
         words.iter().for_each(|word| println!("{}", word));
         eprintln_if_verbose(&format!("Found {} words.", words.len()), config.verbose);
-        exit(0);
+        process::exit(0);
     }
 
     eprintln!("Sorry, couldn't find any words. :(")
-
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -152,12 +184,24 @@ mod tests {
     fn test_word_loading() {
         let mut expected: HashSet<String> = HashSet::new();
         expected.extend(["word1", "word2", "anotherword"].map(String::from));
-        assert_eq!(load_words("public/test_list.txt").unwrap(), expected);
+        assert_eq!(
+            load_words(
+                "public/test_list.txt",
+                100,
+                &HashSet::from_iter("abcdefghijklmnopqrstuvwxyz12".chars())
+            )
+            .unwrap(),
+            expected
+        );
     }
 
     #[test]
     fn test_failed_word_loading() {
-        assert!(match load_words("public/nonexistent.txt") {
+        assert!(match load_words(
+            "public/nonexistent.txt",
+            100,
+            &HashSet::from(['a', 'b', 'c'])
+        ) {
             Ok(_) => false,
             Err(_) => true,
         });
@@ -181,10 +225,15 @@ mod tests {
 
     #[test]
     fn test_get_words() {
-        let valid_prefixes = get_prefixes(&load_words("public/test_list.txt").unwrap());
+        let max_len = 100;
+        let letters = HashSet::from_iter("abcdefghijklmnopqrstuvwxyz12".chars());
+        let valid_prefixes =
+            get_prefixes(&load_words("public/test_list.txt", max_len, &letters).unwrap());
         let results = get_words(PathBuilder::from("2owrd"), &valid_prefixes);
-    
 
-        assert_eq!(results, HashSet::from(["w", "wo", "wor", "word", "word2"].map(String::from)));
-    } 
+        assert_eq!(
+            results,
+            HashSet::from(["w", "wo", "wor", "word", "word2"].map(String::from))
+        );
+    }
 }
