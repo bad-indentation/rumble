@@ -1,4 +1,4 @@
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::process;
 
@@ -30,18 +30,22 @@ fn get_letter_counts(word: &str) -> HashMap<char, usize> {
 
 /// Returns true if `word` is an anagram of the string whose letter counts
 /// are given by `count`
-/// If `partial` is true, `word` need not use every letter in count 
+/// If `partial` is true, `word` need not use every letter in count
 /// to be considered a (partial) anagram
 fn is_anagram_of(word: &str, target: &HashMap<char, usize>, partial: bool) -> bool {
     let mut candinate_count = HashMap::new();
 
     for letter in word.chars() {
-        candinate_count.entry(letter).and_modify(|ct| *ct += 1).or_insert(1);
-        
-        if *target.get(&letter).unwrap_or(&0) < *candinate_count.get(&letter).expect("violates invariant") {
+        candinate_count
+            .entry(letter)
+            .and_modify(|ct| *ct += 1)
+            .or_insert(1);
+
+        if *target.get(&letter).unwrap_or(&0)
+            < *candinate_count.get(&letter).expect("violates invariant")
+        {
             return false;
-        } 
-        
+        }
     }
 
     partial || *target == candinate_count
@@ -123,7 +127,10 @@ pub fn run(config: Config) {
     let mut solutions = 0;
 
     eprintln_if_verbose("Searching...", config.verbose);
-    for word in valid_words.iter().filter(|word| is_anagram_of(word, &target_count, config.include_partial)) {
+    for word in valid_words
+        .iter()
+        .filter(|word| is_anagram_of(word, &target_count, config.include_partial))
+    {
         solutions += 1;
         println!("{word}");
     }
@@ -131,8 +138,11 @@ pub fn run(config: Config) {
     if solutions == 0 {
         eprintln!("Sorry, couldn't find any solutions. :(");
     } else {
-        eprintln!("Found {solutions} solution{}", "s".repeat(usize::min(1, solutions - 1)) + ".");
-    } 
+        eprintln!(
+            "Found {solutions} solution{}",
+            "s".repeat(usize::min(1, solutions - 1)) + "."
+        );
+    }
 }
 
 #[cfg(test)]
@@ -180,7 +190,7 @@ mod tests {
 
         assert!(is_anagram_of(candidate, &count, false));
     }
-    
+
     #[test]
     fn test_partial_anagram_not_full_anagram() {
         let count = get_letter_counts("anagram");
@@ -204,5 +214,4 @@ mod tests {
 
         assert!(!is_anagram_of(candidate, &count, true));
     }
-
 }
