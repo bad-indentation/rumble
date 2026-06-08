@@ -146,7 +146,7 @@ pub fn run(config: Config) {
     let valid_words = match result {
         Ok(words) => words,
         Err(e) => {
-            eprintln!("Problem loading words: {:?}", e);
+            eprintln!("Problem loading words: {:?}", e.to_string());
             eprintln!("Hint: this error is likely because you're in the wrong directory!");
             process::exit(1);
         }
