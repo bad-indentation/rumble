@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 use std::fs;
 use std::process;
 
@@ -13,6 +13,38 @@ fn no_invalid_letters(word: &str, letters: &HashSet<char>) -> bool {
         }
     }
     true
+}
+
+/// Returns the count for each letter in the given word.
+///
+/// Based on example code from the HashMap documentation.
+fn get_letter_counts(word: &str) -> HashMap<char, usize> {
+    let mut counter = HashMap::new();
+
+    for letter in word.chars() {
+        counter.entry(letter).and_modify(|ct| *ct += 1).or_insert(1);
+    }
+
+    counter
+}
+
+/// Returns true if `word` is an anagram of the string whose letter counts
+/// are given by `count`
+/// If `partial` is true, `word` need not use every letter in count 
+/// to be considered a (partial) anagram
+fn is_anagram_of(word: &str, target: &HashMap<char, usize>, partial: bool) -> bool {
+    let mut candinate_count = HashMap::new();
+
+    for letter in word.chars() {
+        candinate_count.entry(letter).and_modify(|ct| *ct += 1).or_insert(1);
+        
+        if *target.get(&letter).unwrap_or(&0) < *candinate_count.get(&letter).expect("violates invariant") {
+            return false;
+        } 
+        
+    }
+
+    partial || *target == candinate_count
 }
 
 /// Loads words from the given filepath
@@ -205,6 +237,45 @@ mod tests {
             Ok(_) => false,
             Err(_) => true,
         });
+    }
+
+    #[test]
+    fn test_get_letter_counts() {
+        let word = "banana";
+        let expected = HashMap::from([('b', 1), ('a', 3), ('n', 2)]);
+        assert_eq!(get_letter_counts(word), expected);
+    }
+
+    #[test]
+    fn test_true_anagram() {
+        let count = get_letter_counts("nagaram");
+        let candidate = "anagram";
+
+        assert!(is_anagram_of(candidate, &count, false));
+    }
+    
+    #[test]
+    fn test_partial_anagram_not_full_anagram() {
+        let count = get_letter_counts("anagram");
+        let candidate = "gram";
+
+        assert!(!is_anagram_of(candidate, &count, false));
+    }
+
+    #[test]
+    fn test_partial_anagram() {
+        let count = get_letter_counts("anagram");
+        let candidate = "gram";
+
+        assert!(is_anagram_of(candidate, &count, true));
+    }
+
+    #[test]
+    fn test_no_anagram() {
+        let count = get_letter_counts("anagram");
+        let candidate = "banana";
+
+        assert!(!is_anagram_of(candidate, &count, true));
     }
 
     #[test]
