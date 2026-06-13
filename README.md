@@ -36,7 +36,7 @@ $ cargo install rumble-cli
 ```
 
 ## General Use
-<ins>Usage</ins>: rumble \[OPTIONS\] \<SCRAMBLED\>
+<ins>Usage</ins>: rumble-cli \[OPTIONS\] \<SCRAMBLED\>
 
 <ins>Arguments</ins>:
   
