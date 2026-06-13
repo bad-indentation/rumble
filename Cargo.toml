@@ -1,6 +1,6 @@
 [package]
 name = "rumble-cli"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Blazingly fast Jumble and anagram solver"
 license = "MIT"
