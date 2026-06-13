@@ -3,7 +3,7 @@
 all of the words that can be created using a fixed set of letters. For example:
 
 ```
-$ rumble ptso
+$ rumble-cli ptso
 ```
 
 outputs
@@ -21,7 +21,7 @@ Found 6 solutions.
 Rumble can also find partial anagrams that don't use all the letters using the -p flag.
 
 ```bash
-$ rumble murleb -p
+$ rumble-cli murleb -p
 elm
 blue
 ...
