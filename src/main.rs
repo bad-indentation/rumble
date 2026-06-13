@@ -1,5 +1,5 @@
 use clap::Parser;
-use rumble::{Config, run};
+use rumble_cli::{Config, run};
 
 fn main() {
     let args = Config::parse();
